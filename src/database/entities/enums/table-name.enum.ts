@@ -1,0 +1,16 @@
+export enum TableNameEnum {
+  VENUES = 'venues',
+  COMMENTS = 'comments',
+  FOLLOWS = 'follows',
+  LIKES = 'likes',
+  REFRESH_TOKENS = 'refresh_tokens',
+  TAGS = 'tags',
+  USERS = 'users',
+  NEWS = 'news',
+  RATING_VENUE = 'rating_venue',
+  PYACHOK_REQUESTS = 'pyachok_request',
+  VENUE_VIEWS = 'venue_views',
+  COMPLAINTS = 'complaints',
+  TOP_CATEGORIES = 'top_categories',
+  TOP_CATEGORY_VENUES = 'top_category_venues',
+}
