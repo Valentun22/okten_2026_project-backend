@@ -54,7 +54,6 @@ export class VenueListQueryDto {
   @IsOptional()
   search?: string;
 
-  // Filters
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -85,7 +84,6 @@ export class VenueListQueryDto {
   @Transform(TransformHelper.toArray)
   categories?: VenueCategoryEnum[];
 
-  // Features (apply filter only when true)
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
@@ -121,7 +119,6 @@ export class VenueListQueryDto {
   @IsBoolean()
   cardPayment?: boolean;
 
-  // Sorting
   @IsOptional()
   @IsEnum(VenueSortByEnum)
   sortBy?: VenueSortByEnum = VenueSortByEnum.CREATED;
@@ -129,4 +126,14 @@ export class VenueListQueryDto {
   @IsOptional()
   @IsEnum(SortOrderEnum)
   sortOrder?: SortOrderEnum = SortOrderEnum.DESC;
+
+  @Transform(TransformHelper.trim)
+  @Transform(TransformHelper.toLowerCase)
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  ownerId?: string;
 }

@@ -1,17 +1,20 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
+import { OAuthProviderEnum } from '../../../database/entities/enums/oauth-provider.enum';
 import { RoleUserEnum } from '../../../database/entities/enums/role.enum';
 import { RefreshTokenRepository } from '../../repository/services/refresh-token.repository';
 import { UserRepository } from '../../repository/services/user.repository';
 import { UserMapper } from '../../users/services/user.mapper';
 import { UsersService } from '../../users/services/users.service';
+import { OAuthLoginReqDto } from '../dto/req/oauth-login.req.dto';
 import { SignInReqDto } from '../dto/req/sign-in.req.dto';
 import { SignUpReqDto } from '../dto/req/sign-up.req.dto';
 import { AuthResDto } from '../dto/res/auth.res.dto';
 import { TokenPairResDto } from '../dto/res/token-pair.res.dto';
 import { IUserData } from '../interfaces/user-data.interface';
 import { AuthCacheService } from './auth-cache.service';
+import { OAuthVerifyService } from './oauth-verify.service';
 import { TokenService } from './token.service';
 
 @Injectable()
@@ -22,6 +25,7 @@ export class AuthService {
     private readonly userService: UsersService,
     private readonly tokenService: TokenService,
     private readonly authCacheService: AuthCacheService,
+    private readonly oAuthVerifyService: OAuthVerifyService,
   ) {}
 
   public async signUp(dto: SignUpReqDto): Promise<AuthResDto> {
@@ -60,13 +64,11 @@ export class AuthService {
       where: { email: dto.email },
       select: { id: true, password: true },
     });
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-    const isPasswordValid = bcrypt.compare(dto.password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException();
-    }
+    if (!user) throw new UnauthorizedException();
+
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    if (!isPasswordValid) throw new UnauthorizedException();
+
     const tokens = await this.tokenService.generateAuthTokens({
       userId: user.id,
       deviceId: dto.deviceId,
@@ -79,7 +81,6 @@ export class AuthService {
       }),
       this.authCacheService.deleteToken(user.id, dto.deviceId),
     ]);
-
     await Promise.all([
       this.refreshTokenRepository.save({
         deviceId: dto.deviceId,
@@ -92,8 +93,66 @@ export class AuthService {
         dto.deviceId,
       ),
     ]);
+
     const userEntity = await this.userRepository.findOneBy({ id: user.id });
     return { user: UserMapper.toResponseDTO(userEntity), tokens };
+  }
+
+  public async oAuthLogin(dto: OAuthLoginReqDto): Promise<AuthResDto> {
+    const oauthData = await this.oAuthVerifyService.verify(
+      dto.provider,
+      dto.token,
+    );
+
+    let user = await this.userRepository.findOne({
+      where: [
+        {
+          oauthId: oauthData.oauthId,
+          oauthProvider: dto.provider as unknown as OAuthProviderEnum,
+        },
+        { email: oauthData.email },
+      ],
+    });
+
+    if (!user) {
+      user = await this.userRepository.save(
+        this.userRepository.create({
+          name: oauthData.name,
+          email: oauthData.email,
+          image: oauthData.image,
+          oauthProvider: dto.provider as unknown as OAuthProviderEnum,
+          oauthId: oauthData.oauthId,
+          role: [RoleUserEnum.USER],
+        }),
+      );
+    } else if (!user.oauthId) {
+      await this.userRepository.update(user.id, {
+        oauthProvider: dto.provider as unknown as OAuthProviderEnum,
+        oauthId: oauthData.oauthId,
+      });
+    }
+
+    const deviceId = dto.deviceId ?? `oauth_${dto.provider}`;
+    const tokens = await this.tokenService.generateAuthTokens({
+      userId: user.id,
+      deviceId,
+    });
+
+    await Promise.all([
+      this.refreshTokenRepository.delete({ deviceId, user_id: user.id }),
+      this.authCacheService.deleteToken(user.id, deviceId),
+    ]);
+    await Promise.all([
+      this.refreshTokenRepository.save({
+        deviceId,
+        refreshToken: tokens.refreshToken,
+        user_id: user.id,
+      }),
+      this.authCacheService.saveToken(tokens.accessToken, user.id, deviceId),
+    ]);
+
+    const freshUser = await this.userRepository.findOneBy({ id: user.id });
+    return { user: UserMapper.toResponseDTO(freshUser), tokens };
   }
 
   public async refresh(userData: IUserData): Promise<TokenPairResDto> {
@@ -104,12 +163,10 @@ export class AuthService {
       }),
       this.authCacheService.deleteToken(userData.userId, userData.deviceId),
     ]);
-
     const tokens = await this.tokenService.generateAuthTokens({
       userId: userData.userId,
       deviceId: userData.deviceId,
     });
-
     await Promise.all([
       this.refreshTokenRepository.save({
         deviceId: userData.deviceId,
@@ -122,7 +179,6 @@ export class AuthService {
         userData.deviceId,
       ),
     ]);
-
     return tokens;
   }
 

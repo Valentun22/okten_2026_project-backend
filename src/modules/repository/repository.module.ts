@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
+import { AppSettingRepository } from './services/app-setting.repository';
 import { CommentRepository } from './services/comment.repository';
 import { ComplaintRepository } from './services/complaint.repository';
 import { FollowRepository } from './services/follow.repository';
@@ -15,6 +16,7 @@ import { VenueRepository } from './services/venue.repository';
 import { VenueViewRepository } from './services/venue-view.repository';
 
 const repositories = [
+  AppSettingRepository,
   VenueRepository,
   CommentRepository,
   ComplaintRepository,

@@ -25,7 +25,6 @@ export class VenueRepository extends Repository<VenueEntity> {
 
     const isPrivileged = roles.includes(RoleUserEnum.SUPERADMIN);
 
-    // Public list shows only moderated + active venues
     if (!isPrivileged) {
       qb.andWhere('venue.isModerated = true');
       qb.andWhere('venue.isActive = true');
@@ -34,7 +33,6 @@ export class VenueRepository extends Repository<VenueEntity> {
     qb.leftJoinAndSelect('venue.tags', 'tag');
     qb.leftJoinAndSelect('venue.user', 'user');
 
-    // Optional joins for authenticated user
     if (userId) {
       qb.leftJoinAndSelect('venue.likes', 'like', 'like.user_id = :userId');
       qb.leftJoinAndSelect(
@@ -45,7 +43,6 @@ export class VenueRepository extends Repository<VenueEntity> {
       qb.setParameter('userId', userId);
     }
 
-    // Rating aggregates (virtual fields)
     const ratingAvgSub = qb
       .subQuery()
       .select('COALESCE(AVG(rv.rating), 0)')
@@ -68,13 +65,20 @@ export class VenueRepository extends Repository<VenueEntity> {
       qb.setParameter('search', `%${query.search}%`);
     }
 
+    if (query.city) {
+      qb.andWhere('LOWER(venue.city) ILIKE :city');
+      qb.setParameter('city', `%${query.city.toLowerCase()}%`);
+    }
+    if (query.ownerId) {
+      qb.andWhere('venue.user_id = :ownerId', { ownerId: query.ownerId });
+    }
+
     if (query.tag) {
       qb.andWhere('tag.name = :tag');
       qb.setParameter('tag', query.tag);
     }
 
     if (query.categories?.length) {
-      // overlap for Postgres enum arrays
       qb.andWhere('venue.categories && :categories');
       qb.setParameter('categories', query.categories);
     }
@@ -99,7 +103,6 @@ export class VenueRepository extends Repository<VenueEntity> {
       qb.setParameter('ratingTo', query.ratingTo);
     }
 
-    // Feature filters (apply only when true)
     const boolFilters: Array<[keyof VenueListQueryDto, string]> = [
       ['hasWiFi', 'venue.hasWiFi'],
       ['hasParking', 'venue.hasParking'],
@@ -115,7 +118,6 @@ export class VenueRepository extends Repository<VenueEntity> {
       if (v === true) qb.andWhere(`${column} = true`);
     }
 
-    // Sorting
     const order = (query.sortOrder ?? SortOrderEnum.DESC) as any;
     switch (query.sortBy) {
       case VenueSortByEnum.RATING:
@@ -142,6 +144,13 @@ export class VenueRepository extends Repository<VenueEntity> {
     if (query.search) {
       qbCount.andWhere('CONCAT(venue.name, venue.description) ILIKE :search');
       qbCount.setParameter('search', `%${query.search}%`);
+    }
+    if (query.city) {
+      qbCount.andWhere('LOWER(venue.city) ILIKE :city');
+      qbCount.setParameter('city', `%${query.city.toLowerCase()}%`);
+    }
+    if (query.ownerId) {
+      qbCount.andWhere('venue.user_id = :ownerId', { ownerId: query.ownerId });
     }
     if (query.tag) {
       qbCount.leftJoin('venue.tags', 'tag');
@@ -199,7 +208,6 @@ export class VenueRepository extends Repository<VenueEntity> {
     qb.skip(query.offset);
 
     const { entities, raw } = await qb.getRawAndEntities();
-    // Attach virtual fields to entities
     entities.forEach((e, idx) => {
       (e as any).ratingAvg = raw[idx]?.ratingAvg
         ? Number(raw[idx].ratingAvg)
@@ -237,7 +245,6 @@ export class VenueRepository extends Repository<VenueEntity> {
 
     const entity = await qb.getOneOrFail();
 
-    // Attach rating aggregates (virtual fields)
     const ratingRepo = em
       ? em.getRepository(RatingVenueEntity)
       : this.dataSource.getRepository(RatingVenueEntity);

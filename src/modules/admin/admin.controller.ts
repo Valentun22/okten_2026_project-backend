@@ -11,23 +11,26 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { SkipAuth } from '../auth/decorators/skip-auth.decorator';
 import { IUserData } from '../auth/interfaces/user-data.interface';
 import { CommentResDto } from '../comments/dto/res/comment.res.dto';
+import { TopCategoryResDto } from '../top/dto/res/top-category.res.dto';
+import { TopCategoryWithVenuesResDto } from '../top/dto/res/top-category-with-venues.res.dto';
 import { UserResDto } from '../users/dto/res/user.res.dto';
-import { ComplaintListResDto } from '../venue/dto/res/complaint-list.res.dto';
-import { ComplaintResDto } from '../venue/dto/res/complaint.res.dto';
 import { VenueListQueryDto } from '../venue/dto/req/venue-list.query.dto';
+import { ComplaintResDto } from '../venue/dto/res/complaint.res.dto';
+import { ComplaintListResDto } from '../venue/dto/res/complaint-list.res.dto';
 import { VenueResDto } from '../venue/dto/res/venue.res.dto';
 import { VenueListResDto } from '../venue/dto/res/venue-list.res.dto';
-import { AdminComplaintListQueryDto } from './dto/req/admin-complaint-list.query.dto';
 import { AdminAddVenueToTopCategoryReqDto } from './dto/req/admin-add-venue-to-top-category.req.dto';
+import { AdminComplaintListQueryDto } from './dto/req/admin-complaint-list.query.dto';
 import { AdminCreateTopCategoryReqDto } from './dto/req/admin-create-top-category.req.dto';
 import { AdminReorderTopCategoriesReqDto } from './dto/req/admin-reorder-top-categories.req.dto';
 import { AdminReorderTopCategoryVenuesReqDto } from './dto/req/admin-reorder-top-category-venues.req.dto';
-import { AdminUpdateComplaintStatusReqDto } from './dto/req/admin-update-complaint-status.req.dto';
-import { AdminUpdateTopCategoryReqDto } from './dto/req/admin-update-top-category.req.dto';
 import { AdminSetVenueRatingReqDto } from './dto/req/admin-set-venue-rating.req.dto';
 import { AdminUpdateCommentReqDto } from './dto/req/admin-update-comment.req.dto';
+import { AdminUpdateComplaintStatusReqDto } from './dto/req/admin-update-complaint-status.req.dto';
+import { AdminUpdateTopCategoryReqDto } from './dto/req/admin-update-top-category.req.dto';
 import { AdminUpdateUserReqDto } from './dto/req/admin-update-user.req.dto';
 import { AdminUpdateVenueReqDto } from './dto/req/admin-update-venue.req.dto';
 import { AdminUserListQueryDto } from './dto/req/admin-user-list.query.dto.';
@@ -39,8 +42,6 @@ import {
   AdminVenueViewsTimePointResDto,
 } from './dto/res/admin-venue-views.res.dto';
 import { AdminService } from './services/admin.service';
-import { TopCategoryResDto } from '../top/dto/res/top-category.res.dto';
-import { TopCategoryWithVenuesResDto } from '../top/dto/res/top-category-with-venues.res.dto';
 
 @ApiBearerAuth()
 @ApiTags('Admin')
@@ -128,6 +129,21 @@ export class AdminController {
     @Body() body: { userId: string },
   ): Promise<void> {
     await this.adminService.reassignVenueOwner(userData, venueId, body.userId);
+  }
+
+  @Get('comments')
+  public async getAllComments(
+    @CurrentUser() userData: IUserData,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('search') search?: string,
+  ) {
+    return await this.adminService.getAllComments(
+      userData,
+      limit ? parseInt(limit) : 20,
+      offset ? parseInt(offset) : 0,
+      search,
+    );
   }
 
   @Patch('comments/:commentId')
@@ -225,6 +241,27 @@ export class AdminController {
     );
   }
 
+  // CMS Settings
+
+  @SkipAuth()
+  @Get('settings/public')
+  public async getPublicCmsSettings() {
+    return await this.adminService.getPublicCmsSettings();
+  }
+
+  @Get('settings')
+  public async getCmsSettings(@CurrentUser() userData: IUserData) {
+    return await this.adminService.getCmsSettings(userData);
+  }
+
+  @Patch('settings')
+  public async updateCmsSettings(
+    @CurrentUser() userData: IUserData,
+    @Body() dto: Record<string, string>,
+  ) {
+    return await this.adminService.updateCmsSettings(userData, dto);
+  }
+
   // TOP
 
   @Get('top/categories')
@@ -255,7 +292,10 @@ export class AdminController {
     @CurrentUser() userData: IUserData,
     @Param('categoryId') categoryId: string,
   ): Promise<TopCategoryWithVenuesResDto> {
-    return await this.adminService.getTopCategoryWithVenues(userData, categoryId);
+    return await this.adminService.getTopCategoryWithVenues(
+      userData,
+      categoryId,
+    );
   }
 
   @Patch('top/categories/:categoryId')

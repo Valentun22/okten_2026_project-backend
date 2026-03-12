@@ -6,4 +6,9 @@ export class UpdateUserDto extends PickType(BaseUserReqDto, [
   'bio',
   'name',
   'image',
+  'birthdate',
+  'city',
+  'gender',
+  'instagram',
+  'interests',
 ]) {}

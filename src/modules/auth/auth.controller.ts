@@ -10,6 +10,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from './decorators/current-user.decorator';
 import { SkipAuth } from './decorators/skip-auth.decorator';
+import { OAuthLoginReqDto } from './dto/req/oauth-login.req.dto';
 import { SignInReqDto } from './dto/req/sign-in.req.dto';
 import { SignUpReqDto } from './dto/req/sign-up.req.dto';
 import { AuthResDto } from './dto/res/auth.res.dto';
@@ -33,6 +34,12 @@ export class AuthController {
   @Post('sign-in')
   public async signIn(@Body() dto: SignInReqDto): Promise<AuthResDto> {
     return await this.authService.signIn(dto);
+  }
+
+  @SkipAuth()
+  @Post('oauth')
+  public async oAuthLogin(@Body() dto: OAuthLoginReqDto): Promise<AuthResDto> {
+    return await this.authService.oAuthLogin(dto);
   }
 
   @ApiBearerAuth()

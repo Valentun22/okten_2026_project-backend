@@ -71,4 +71,27 @@ export class CommentRepository extends Repository<CommentEntity> {
 
     return await qb.getManyAndCount();
   }
+
+  public async getAllComments(
+    limit: number,
+    offset: number,
+    search?: string,
+  ): Promise<[any[], number]> {
+    const qb = this.createQueryBuilder('comment');
+    qb.leftJoinAndSelect('comment.user', 'user');
+    qb.leftJoinAndSelect('comment.venue', 'venue');
+
+    if (search) {
+      qb.andWhere(
+        '(comment.title ILIKE :s OR comment.body ILIKE :s OR venue.name ILIKE :s OR user.name ILIKE :s)',
+        { s: `%${search}%` },
+      );
+    }
+
+    qb.orderBy('comment.created', 'DESC');
+    qb.take(limit);
+    qb.skip(offset);
+
+    return await qb.getManyAndCount();
+  }
 }

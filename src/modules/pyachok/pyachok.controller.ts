@@ -28,6 +28,15 @@ export class PyachokController {
   constructor(private readonly service: PyachokService) {}
 
   @SkipAuth()
+  @ApiOperation({
+    summary: 'Public open feed — all open requests across all venues',
+  })
+  @Get('/pyachok/feed')
+  getOpenFeed(@Query() query: PyachokListQueryDto) {
+    return this.service.getOpenFeed(query);
+  }
+
+  @SkipAuth()
   @ApiOperation({ summary: 'Public list: open requests by venue' })
   @Get('/venues/:venueId/pyachok')
   getVenuePublicList(

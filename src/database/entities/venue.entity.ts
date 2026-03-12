@@ -18,8 +18,8 @@ import { NewsEntity } from './news.entity';
 import { PyachokEntity } from './pyachok.entity';
 import { RatingVenueEntity } from './rating-venue.entity';
 import { TagEntity } from './tag.entity';
-import { UserEntity } from './user.entity';
 import { TopCategoryVenueEntity } from './top-category-venue.entity';
+import { UserEntity } from './user.entity';
 
 @Entity(TableNameEnum.VENUES)
 export class VenueEntity extends CreateUpdateModel {

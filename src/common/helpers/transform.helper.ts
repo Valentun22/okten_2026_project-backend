@@ -23,7 +23,6 @@ export class TransformHelper {
     return value ? value.map((item) => item.toLowerCase()) : value;
   }
 
-  // Useful for query params like: ?categories=bar&categories=pub OR ?categories=bar,pub
   public static toArray({ value }) {
     if (value === undefined || value === null) return value;
     if (Array.isArray(value)) return value;

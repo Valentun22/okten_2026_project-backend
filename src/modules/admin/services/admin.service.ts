@@ -3,52 +3,52 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { In } from 'typeorm';
 import { UserRepository } from 'src/modules/repository/services/user.repository';
+import { In } from 'typeorm';
 
 import { RoleUserEnum } from '../../../database/entities/enums/role.enum';
 import { RatingVenueEntity } from '../../../database/entities/rating-venue.entity';
 import { TagEntity } from '../../../database/entities/tag.entity';
+import { TopCategoryEntity } from '../../../database/entities/top-category.entity';
 import { IUserData } from '../../auth/interfaces/user-data.interface';
 import { CommentResDto } from '../../comments/dto/res/comment.res.dto';
 import { CommentMapper } from '../../comments/services/comment.mapper';
+import { AppSettingRepository } from '../../repository/services/app-setting.repository';
 import { CommentRepository } from '../../repository/services/comment.repository';
+import { ComplaintRepository } from '../../repository/services/complaint.repository';
 import { RatingVenueRepository } from '../../repository/services/rating-venue.repository';
 import { TagRepository } from '../../repository/services/tag.repository';
+import { TopRepository } from '../../repository/services/top.repository';
 import { VenueRepository } from '../../repository/services/venue.repository';
 import { VenueViewRepository } from '../../repository/services/venue-view.repository';
-import { ComplaintRepository } from '../../repository/services/complaint.repository';
-import { TopRepository } from '../../repository/services/top.repository';
+import { TopCategoryResDto } from '../../top/dto/res/top-category.res.dto';
+import { TopCategoryWithVenuesResDto } from '../../top/dto/res/top-category-with-venues.res.dto';
 import { UserMapper } from '../../users/services/user.mapper';
-import { ComplaintListResDto } from '../../venue/dto/res/complaint-list.res.dto';
-import { ComplaintResDto } from '../../venue/dto/res/complaint.res.dto';
-import { ComplaintMapper } from '../../venue/services/complaint.mapper';
 import { VenueListQueryDto } from '../../venue/dto/req/venue-list.query.dto';
+import { ComplaintResDto } from '../../venue/dto/res/complaint.res.dto';
+import { ComplaintListResDto } from '../../venue/dto/res/complaint-list.res.dto';
 import { VenueResDto } from '../../venue/dto/res/venue.res.dto';
 import { VenueListResDto } from '../../venue/dto/res/venue-list.res.dto';
+import { ComplaintMapper } from '../../venue/services/complaint.mapper';
 import { VenueMapper } from '../../venue/services/venue.mapper';
+import { AdminAddVenueToTopCategoryReqDto } from '../dto/req/admin-add-venue-to-top-category.req.dto';
+import { AdminComplaintListQueryDto } from '../dto/req/admin-complaint-list.query.dto';
+import { AdminCreateTopCategoryReqDto } from '../dto/req/admin-create-top-category.req.dto';
+import { AdminReorderTopCategoriesReqDto } from '../dto/req/admin-reorder-top-categories.req.dto';
+import { AdminReorderTopCategoryVenuesReqDto } from '../dto/req/admin-reorder-top-category-venues.req.dto';
 import { AdminUpdateCommentReqDto } from '../dto/req/admin-update-comment.req.dto';
+import { AdminUpdateComplaintStatusReqDto } from '../dto/req/admin-update-complaint-status.req.dto';
+import { AdminUpdateTopCategoryReqDto } from '../dto/req/admin-update-top-category.req.dto';
 import { AdminUpdateUserReqDto } from '../dto/req/admin-update-user.req.dto';
 import { AdminUpdateVenueReqDto } from '../dto/req/admin-update-venue.req.dto';
-import { AdminComplaintListQueryDto } from '../dto/req/admin-complaint-list.query.dto';
-import { AdminUpdateComplaintStatusReqDto } from '../dto/req/admin-update-complaint-status.req.dto';
 import { AdminUserListQueryDto } from '../dto/req/admin-user-list.query.dto.';
 import { AdminUserListResDto } from '../dto/req/admin-user-list.res.dto';
 import { AdminVenueListQueryDto } from '../dto/req/admin-venue-list.query.dto';
 import { AdminVenueViewsQueryDto } from '../dto/req/admin-venue-views.query.dto';
-import { AdminAddVenueToTopCategoryReqDto } from '../dto/req/admin-add-venue-to-top-category.req.dto';
-import { AdminCreateTopCategoryReqDto } from '../dto/req/admin-create-top-category.req.dto';
-import { AdminReorderTopCategoriesReqDto } from '../dto/req/admin-reorder-top-categories.req.dto';
-import { AdminReorderTopCategoryVenuesReqDto } from '../dto/req/admin-reorder-top-category-venues.req.dto';
-import { AdminUpdateTopCategoryReqDto } from '../dto/req/admin-update-top-category.req.dto';
 import {
   AdminVenueViewsSummaryResDto,
   AdminVenueViewsTimePointResDto,
 } from '../dto/res/admin-venue-views.res.dto';
-import { TopCategoryEntity } from '../../../database/entities/top-category.entity';
-import { TopCategoryVenueEntity } from '../../../database/entities/top-category-venue.entity';
-import { TopCategoryResDto } from '../../top/dto/res/top-category.res.dto';
-import { TopCategoryWithVenuesResDto } from '../../top/dto/res/top-category-with-venues.res.dto';
 
 @Injectable()
 export class AdminService {
@@ -56,6 +56,7 @@ export class AdminService {
     private readonly venueRepository: VenueRepository,
     private readonly userRepository: UserRepository,
     private readonly commentRepository: CommentRepository,
+    private readonly appSettingRepository: AppSettingRepository,
     private readonly venueViewRepository: VenueViewRepository,
     private readonly ratingVenueRepository: RatingVenueRepository,
     private readonly tagRepository: TagRepository,
@@ -377,6 +378,37 @@ export class AdminService {
     await this.venueRepository.update(venueId, { user_id: newOwnerUserId });
   }
 
+  public async getAllComments(
+    userData: IUserData,
+    limit = 20,
+    offset = 0,
+    search?: string,
+  ) {
+    this.assertSuperAdmin(userData);
+    const [items, total] = await this.commentRepository.getAllComments(
+      limit,
+      offset,
+      search,
+    );
+    return {
+      data: items.map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        body: c.body,
+        rating: c.rating,
+        image_check: c.image_check,
+        created: c.created,
+        user: c.user
+          ? { id: c.user.id, name: c.user.name, image: c.user.image }
+          : null,
+        venue: c.venue ? { id: c.venue.id, name: c.venue.name } : null,
+      })),
+      total,
+      limit,
+      offset,
+    };
+  }
+
   public async updateComment(
     userData: IUserData,
     commentId: string,
@@ -386,26 +418,23 @@ export class AdminService {
 
     const comment = await this.commentRepository.findOne({
       where: { id: commentId },
-      relations: ['user'], // потрібно для CommentMapper (isCritic)
+      relations: ['user'],
     });
 
     if (!comment) throw new NotFoundException('Comment not found');
 
-    // адмін може змінювати все без обмежень критика
     if (dto.title !== undefined) comment.title = dto.title;
     if (dto.body !== undefined) comment.body = dto.body;
     if (dto.rating !== undefined) comment.rating = dto.rating;
     if (dto.image_check !== undefined)
       comment.image_check = dto.image_check as any;
 
-    // recommendation: дозволяємо адміну ставити/скидати
     if (dto.recommendation !== undefined) {
       comment.recommendation = dto.recommendation as any;
     }
 
     const saved = await this.commentRepository.save(comment);
 
-    // підвантажимо user ще раз (інколи save може скинути relation)
     const full = await this.commentRepository.findOne({
       where: { id: saved.id },
       relations: ['user'],
@@ -540,13 +569,44 @@ export class AdminService {
     return rows;
   }
 
+  public async getCmsSettings(
+    userData: IUserData,
+  ): Promise<Record<string, string>> {
+    this.assertSuperAdmin(userData);
+    return await this.appSettingRepository.getAll();
+  }
+
+  public async updateCmsSettings(
+    userData: IUserData,
+    data: Record<string, string>,
+  ): Promise<Record<string, string>> {
+    this.assertSuperAdmin(userData);
+    await this.appSettingRepository.upsertManySettings(data);
+    return await this.appSettingRepository.getAll();
+  }
+
+  public async getPublicCmsSettings(): Promise<Record<string, string>> {
+    const all = await this.appSettingRepository.getAll();
+    const PUBLIC_KEYS = [
+      'about_text',
+      'contact_phone',
+      'contact_email',
+      'contact_address',
+      'about_title',
+    ];
+    return Object.fromEntries(
+      Object.entries(all).filter(([k]) => PUBLIC_KEYS.includes(k)),
+    );
+  }
+
   public async getComplaints(
     userData: IUserData,
     query: AdminComplaintListQueryDto,
   ): Promise<ComplaintListResDto> {
     this.assertSuperAdmin(userData);
 
-    const [entities, total] = await this.complaintRepository.getAdminList(query);
+    const [entities, total] =
+      await this.complaintRepository.getAdminList(query);
 
     return ComplaintMapper.toListResponseDTO(
       entities,
@@ -592,7 +652,9 @@ export class AdminService {
 
   // TOP
 
-  public async getTopCategories(userData: IUserData): Promise<TopCategoryResDto[]> {
+  public async getTopCategories(
+    userData: IUserData,
+  ): Promise<TopCategoryResDto[]> {
     this.assertSuperAdmin(userData);
 
     const categories = await this.topRepository.categories.find({
@@ -654,7 +716,9 @@ export class AdminService {
     this.assertSuperAdmin(userData);
 
     const ids = dto.items.map((i) => i.categoryId);
-    const categories = await this.topRepository.categories.findBy({ id: In(ids) });
+    const categories = await this.topRepository.categories.findBy({
+      id: In(ids),
+    });
     const map = new Map(dto.items.map((i) => [i.categoryId, i.order]));
     for (const c of categories) {
       const order = map.get(c.id);
@@ -673,7 +737,9 @@ export class AdminService {
     const category = await this.topRepository.getCategoryById(categoryId);
     if (!category) throw new NotFoundException('Top category not found');
 
-    const venue = await this.venueRepository.findOne({ where: { id: dto.venueId } });
+    const venue = await this.venueRepository.findOne({
+      where: { id: dto.venueId },
+    });
     if (!venue) throw new NotFoundException('Venue not found');
 
     const item = this.topRepository.items.create({
@@ -690,7 +756,10 @@ export class AdminService {
     venueId: string,
   ): Promise<void> {
     this.assertSuperAdmin(userData);
-    await this.topRepository.items.delete({ category_id: categoryId, venue_id: venueId } as any);
+    await this.topRepository.items.delete({
+      category_id: categoryId,
+      venue_id: venueId,
+    } as any);
   }
 
   public async reorderTopCategoryVenues(
@@ -700,7 +769,9 @@ export class AdminService {
   ): Promise<void> {
     this.assertSuperAdmin(userData);
 
-    const items = await this.topRepository.items.find({ where: { category_id: categoryId } as any });
+    const items = await this.topRepository.items.find({
+      where: { category_id: categoryId } as any,
+    });
     const map = new Map(dto.items.map((i) => [i.venueId, i.order]));
     for (const it of items) {
       const order = map.get(it.venue_id);
@@ -718,7 +789,6 @@ export class AdminService {
     const category = await this.topRepository.getCategoryById(categoryId);
     if (!category) throw new NotFoundException('Top category not found');
 
-    // For admin view, show venues even if inactive/unmoderated
     const qb = this.topRepository.items
       .createQueryBuilder('it')
       .innerJoinAndSelect('it.venue', 'venue')
@@ -731,8 +801,6 @@ export class AdminService {
     const rows = await qb.getMany();
     const venues = rows.map((r) => r.venue!).filter(Boolean);
 
-    // attach rating aggregates for admin view (optional)
-    // keep it simple: no aggregates here; frontend can call venue details if needed
     return {
       category: this.mapTopCategory(category),
       venues: venues.map((v) => VenueMapper.toResponseDTO(v)),

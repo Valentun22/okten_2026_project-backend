@@ -10,7 +10,6 @@ export class PyachokRepository extends Repository<PyachokEntity> {
   constructor(private readonly dataSource: DataSource) {
     super(PyachokEntity, dataSource.manager);
   }
-  //todo глянути чи все використовується
   public async getVenuePublicList(
     venueId: string,
     query: PyachokListQueryDto,
@@ -18,7 +17,7 @@ export class PyachokRepository extends Repository<PyachokEntity> {
     const qb = this.createQueryBuilder('p');
 
     qb.andWhere('p.venue_id = :venueId', { venueId });
-    qb.andWhere('p.isClosed = false');
+    qb.andWhere('p.status = :status', { status: PyachokStatusEnum.OPEN });
 
     if (query.date) {
       qb.andWhere('p.date = :date', { date: query.date });
@@ -46,11 +45,11 @@ export class PyachokRepository extends Repository<PyachokEntity> {
     qb.andWhere('p.venue_id = :venueId', { venueId });
 
     if (query.status === PyachokStatusEnum.OPEN) {
-      qb.andWhere('p.isClosed = false');
+      qb.andWhere('p.status = :status', { status: PyachokStatusEnum.OPEN });
     }
 
     if (query.status === PyachokStatusEnum.CLOSED) {
-      qb.andWhere('p.isClosed = true');
+      qb.andWhere('p.status = :status', { status: PyachokStatusEnum.CLOSED });
     }
 
     if (query.date) {
@@ -64,6 +63,28 @@ export class PyachokRepository extends Repository<PyachokEntity> {
     qb.take(limit);
     qb.skip(skip);
 
+    qb.orderBy('p.created', 'DESC');
+
+    return await qb.getManyAndCount();
+  }
+
+  public async getOpenFeed(
+    query: PyachokListQueryDto,
+  ): Promise<[PyachokEntity[], number]> {
+    const qb = this.createQueryBuilder('p');
+    qb.leftJoinAndSelect('p.user', 'user');
+    qb.leftJoinAndSelect('p.venue', 'venue');
+    qb.andWhere('p.status = :status', { status: PyachokStatusEnum.OPEN });
+
+    if (query.date) {
+      qb.andWhere('p.date = :date', { date: query.date });
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    qb.take(limit);
+    qb.skip(skip);
     qb.orderBy('p.created', 'DESC');
 
     return await qb.getManyAndCount();

@@ -52,6 +52,16 @@ export class PyachokService {
     return venue;
   }
 
+  public async getOpenFeed(query: PyachokListQueryDto) {
+    const [items, total] = await this.pyachokRepo.getOpenFeed(query);
+    return {
+      total,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
+      items,
+    };
+  }
+
   public async getVenuePublicList(venueId: string, query: PyachokListQueryDto) {
     const fixed: PyachokListQueryDto = {
       ...query,

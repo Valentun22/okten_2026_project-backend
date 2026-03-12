@@ -13,4 +13,5 @@ export enum TableNameEnum {
   COMPLAINTS = 'complaints',
   TOP_CATEGORIES = 'top_categories',
   TOP_CATEGORY_VENUES = 'top_category_venues',
+  APP_SETTINGS = 'app_settings',
 }

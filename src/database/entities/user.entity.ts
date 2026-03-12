@@ -2,6 +2,7 @@ import { Column, Entity, JoinTable, ManyToMany, OneToMany } from 'typeorm';
 
 import { CommentEntity } from './comment.entity';
 import { ComplaintEntity } from './complaint.entity';
+import { OAuthProviderEnum } from './enums/oauth-provider.enum';
 import { RoleUserEnum } from './enums/role.enum';
 import { TableNameEnum } from './enums/table-name.enum';
 import { FollowEntity } from './follow.entity';
@@ -20,14 +21,29 @@ export class UserEntity extends CreateUpdateModel {
   @Column('text', { unique: true })
   email: string;
 
-  @Column('text', { select: false })
-  password: string;
+  @Column('text', { nullable: true, select: false })
+  password?: string;
 
   @Column('text', { nullable: true })
   bio?: string;
 
   @Column('text', { nullable: true })
   image?: string;
+
+  @Column({ type: 'date', nullable: true })
+  birthdate?: string;
+
+  @Column('text', { nullable: true })
+  city?: string;
+
+  @Column('text', { nullable: true })
+  gender?: string;
+
+  @Column('text', { nullable: true })
+  instagram?: string;
+
+  @Column('text', { nullable: true })
+  interests?: string;
 
   @Column({
     type: 'enum',
@@ -36,6 +52,16 @@ export class UserEntity extends CreateUpdateModel {
     default: [RoleUserEnum.USER],
   })
   role: RoleUserEnum[];
+
+  @Column({
+    type: 'enum',
+    enum: OAuthProviderEnum,
+    nullable: true,
+  })
+  oauthProvider?: OAuthProviderEnum;
+
+  @Column('text', { nullable: true })
+  oauthId?: string;
 
   @OneToMany(() => LikeEntity, (entity) => entity.user)
   likes?: LikeEntity[];
